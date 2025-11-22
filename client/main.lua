@@ -910,6 +910,18 @@ RegisterNUICallback('TransferCrypto', function(data, cb)
     end, data)
 end)
 
+RegisterNUICallback('SaveWalletAddress', function(data, cb)
+    -- data = { address = '0x...' }
+    TriggerServerEvent('qb-crypto:server:SaveWalletAddress', data.address)
+    cb('ok')
+end)
+
+RegisterNUICallback('ConfirmOnchainTransfer', function(data, cb)
+    -- data = { targetWallet = '0x...', coins = 1.23, txHash = '0x...' }
+    TriggerServerEvent('qb-crypto:server:ConfirmOnchainTransfer', data.targetWallet, data.coins, data.txHash)
+    cb('ok')
+end)
+
 RegisterNUICallback('GetCryptoTransactions', function(_, cb)
     local Data = {
         CryptoTransactions = PhoneData.CryptoTransactions
