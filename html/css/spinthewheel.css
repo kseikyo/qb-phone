@@ -1,0 +1,107 @@
+.spinwheel-app {
+    display: none;
+    height: 100%;
+    width: 100%;
+    background: #2c3e50;
+    overflow: hidden;
+    position: relative;
+    font-family: sans-serif;
+}
+
+.spinwheel-header {
+    height: 6vh;
+    width: 100%;
+    background-color: #e74c3c;
+    text-align: center;
+    line-height: 6vh;
+    color: white;
+    font-size: 2vh;
+    font-weight: bold;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.wheel-container {
+    position: relative;
+    width: 30vh;
+    height: 30vh;
+    margin: 5vh auto;
+    border-radius: 50%;
+    border: 4px solid white;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+/* The Wheel itself */
+.wheel {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+    /* Physics ease-out */
+    /* 8 Segments */
+    background: conic-gradient(#f1c40f 0deg 45deg,
+            /* Prize 1 */
+            #e67e22 45deg 90deg,
+            /* Prize 2 */
+            #e74c3c 90deg 135deg,
+            /* Prize 3 */
+            #9b59b6 135deg 180deg,
+            /* Prize 4 */
+            #3498db 180deg 225deg,
+            /* Prize 5 */
+            #1abc9c 225deg 270deg,
+            /* Prize 6 */
+            #2ecc71 270deg 315deg,
+            /* Prize 7 */
+            #95a5a6 315deg 360deg
+            /* Prize 8 */
+        );
+    transform: rotate(0deg);
+}
+
+/* The pointer arrow at the top */
+.wheel-pointer {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-top: 25px solid white;
+    z-index: 10;
+}
+
+.spin-btn {
+    display: block;
+    width: 60%;
+    margin: 0 auto;
+    padding: 1.5vh;
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 2vh;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.spin-btn:active {
+    background-color: #219150;
+    transform: scale(0.95);
+}
+
+.spin-btn:disabled {
+    background-color: #7f8c8d;
+    cursor: not-allowed;
+}
+
+/* Result Text */
+#spin-result-text {
+    text-align: center;
+    color: white;
+    margin-top: 2vh;
+    font-size: 1.8vh;
+    min-height: 3vh;
+}

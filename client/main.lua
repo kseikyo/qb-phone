@@ -475,6 +475,11 @@ RegisterNUICallback('DenyIncomingCall', function(_, cb)
     cb('ok')
 end)
 
+RegisterNUICallback('SpinWheelReward', function(data, cb)
+    TriggerServerEvent('qb-phone:server:SpinWheelReward', data)
+    cb('ok')
+end)
+
 RegisterNUICallback('CancelOngoingCall', function(_, cb)
     CancelCall()
     cb('ok')

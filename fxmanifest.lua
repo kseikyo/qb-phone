@@ -19,7 +19,8 @@ client_scripts {
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
-    'server/main.lua'
+    'server/main.lua',
+    'server/spinwheel.lua'
 }
 
 files {
@@ -29,4 +30,5 @@ files {
     'html/css/*.css',
     'html/img/backgrounds/*.png',
     'html/img/apps/*.png',
+    'html/css/spinwheel.css',
 }

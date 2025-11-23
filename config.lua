@@ -7,8 +7,8 @@ Config.RepeatTimeout = 2000
 Config.CallRepeats = 10
 Config.OpenPhone = 'M'
 
--- Set this to true if you wish to use Fivemerr (https://fivemerr.com/) for media uploads. 
--- Ensure to add your API key to server/main.lua 
+-- Set this to true if you wish to use Fivemerr (https://fivemerr.com/) for media uploads.
+-- Ensure to add your API key to server/main.lua
 Config.Fivemerr = false
 
 Config.PhoneApplications = {
@@ -170,6 +170,17 @@ Config.PhoneApplications = {
         blockedjobs = {},
         slot = 15,
         Alerts = 0,
+    },
+    ["spinthewheel"] = { -- Unique internal name
+    app = "spinthewheel", -- The application identifier
+    color = "#cda608ff", -- Background color of the icon
+    icon = "fas fa-dharmachakra", -- FontAwesome icon class
+    tooltipText = "Spin The Wheel", -- Hover text
+    tooltipPos = "top",
+    job = false, -- Set to 'police' etc. to restrict access, or false for everyone
+    blockedjobs = {},
+    slot = 15, -- Position on the grid (make sure it doesn't overlap)
+    Alerts = 0, -- Starting notification count
     },
 }
 Config.MaxSlots = 20
