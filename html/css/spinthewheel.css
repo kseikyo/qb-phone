@@ -1,4 +1,5 @@
-.spinwheel-app {
+.spinwheel-app,
+.spinthewheel-app {
     display: none;
     height: 100%;
     width: 100%;
@@ -8,7 +9,8 @@
     font-family: sans-serif;
 }
 
-.spinwheel-header {
+.spinwheel-header,
+.spinthewheel-header {
     height: 6vh;
     width: 100%;
     background-color: #e74c3c;
