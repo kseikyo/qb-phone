@@ -30,5 +30,5 @@ files {
     'html/css/*.css',
     'html/img/backgrounds/*.png',
     'html/img/apps/*.png',
-    'html/css/spinwheel.css',
+    'html/css/spinthewheel.css',
 }

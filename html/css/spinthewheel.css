@@ -1,14 +1,14 @@
-.spinwheel-app {
+.spinthewheel-app {
     display: none;
     height: 100%;
     width: 100%;
     background: #2c3e50;
     overflow: hidden;
-    position: relative;
+    position: absolute;
     font-family: sans-serif;
 }
 
-.spinwheel-header {
+.spinthewheel-header {
     height: 6vh;
     width: 100%;
     background-color: #e74c3c;

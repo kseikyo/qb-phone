@@ -470,6 +470,26 @@ RegisterNUICallback('CancelOutgoingCall', function(_, cb)
     cb('ok')
 end)
 
+-- 1. JS asks Client to start
+RegisterNUICallback('RequestSpin', function(_, cb)
+    -- DEBUG PRINT: If you don't see this in F8, the JS isn't reaching the Client
+    print("[DEBUG] Client: Received 'RequestSpin' from JS. Triggering Server...")
+
+    TriggerServerEvent('qb-phone:server:FetchRandomness')
+    cb('ok')
+end)
+
+-- 2. Server sends the result back to JS
+RegisterNetEvent('qb-phone:client:ReceiveSpinResult', function(targetDegree, label)
+    print("[DEBUG] Client: Received result from Server. Sending to JS...")
+
+    SendNUIMessage({
+        action = "spin_wheel_execute",
+        targetDegree = targetDegree,
+        finalLabel = label
+    })
+end)
+
 RegisterNUICallback('DenyIncomingCall', function(_, cb)
     CancelCall()
     cb('ok')

@@ -1,91 +1,75 @@
-let currentRotation = 0;
-let isSpinning = false;
+local QBCore = exports['qb-core']:GetCoreObject()
 
-// Define prizes corresponding to the 8 segments (45deg each)
-// Order is Counter-Clockwise from 0deg because wheel spins Clockwise
-const prizes = [
-    { label: "$100",   value: "money_100" }, // 0-45
-    { label: "Sandwich", value: "item_sandwich" }, // 45-90
-    { label: "$1000",  value: "money_1000" }, // 90-135
-    { label: "Nothing", value: "none" }, // 135-180
-    { label: "$500",   value: "money_500" }, // 180-225
-    { label: "Water",  value: "item_water" }, // 225-270
-    { label: "$5000",  value: "money_5000" }, // 270-315
-    { label: "Phone",  value: "item_phone" }, // 315-360
-];
+-- NODE CONFIG
+local NODE_API_URL = "http://127.0.0.1:3001/api/spin"
 
-// Initialize functionality
-$(document).ready(function(){
-    // Attach click listener to the spin button
-    $(document).on('click', '#spin-btn', function(e){
-        e.preventDefault();
-        if (!isSpinning) {
-            startSpin();
-        }
-    });
-});
-
-function getRandom(){
-    return Math.random()
+local Segments = {
+    [1] = {label = "$100",   value = "money_100"},
+    [2] = {label = "Sandwich", value = "item_sandwich"},
+    [3] = {label = "$1000",  value = "money_1000"},
+    [4] = {label = "Nothing", value = "none"},
+    [5] = {label = "$500",   value = "money_500"},
+    [6] = {label = "Water",  value = "item_water"},
+    [7] = {label = "$5000",  value = "money_5000"},
+    [8] = {label = "Phone",  value = "item_phone"},
 }
 
-function startSpin() {
-    isSpinning = true;
-    $("#spin-btn").prop("disabled", true);
-    $("#spin-result-text").text("Spinning...");
+RegisterNetEvent('qb-phone:server:FetchRandomness', function()
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
 
-    // Calculate a random angle:
-    // Add 360 * 5 (5 full spins) + random number between 0 and 360
-    const randomDeg = Math.floor(getRandom() * 360);
-    const totalSpins = 360 * 8; // Spin 8 times fast
-    const newRotation = currentRotation + totalSpins + randomDeg;
+    -- DEBUG PRINT: If you don't see this in Server Console, Client isn't reaching Server
+    print("^3[DEBUG] Server: FetchRandomness Event Triggered by ID: " .. src .. "^7")
 
-    // Apply CSS transform
-    $("#wheel").css({
-        "transform": "rotate(" + newRotation + "deg)",
-        "transition": "transform 5s cubic-bezier(0.2, 0.8, 0.3, 1)" // Smooth deceleration
-    });
+    if notRN_Player then
+        print("^1[DEBUG] Error: Player not found!^7")
+        return
+    end
 
-    currentRotation = newRotation;
+    print("^3[DEBUG] Server: Sending HTTP Request to Node...^7")
 
-    // Wait for animation to finish (5 seconds)
-    setTimeout(() => {
-        finishSpin(newRotation);
-    }, 5000);
-}
+    PerformHttpRequest(NODE_API_URL, function(err, text, headers)
+        print("^3[DEBUG] Server: HTTP Response Code: " .. tostring(err) .. "^7")
 
-function finishSpin(finalRotation) {
-    isSpinning = false;
-    $("#spin-btn").prop("disabled", false);
+        local randomDegree = 0
+        local entropySource = "Offline"
 
-    // Calculate which segment is at the top (0deg)
-    // We use modulo 360 to get the remaining angle
-    // Since the arrow is at the top, we need to calculate the offset
-    let actualDeg = finalRotation % 360;
+        if err == 200 then
+            local data = json.decode(text)
+            if data and data.success then
+                randomDegree = tonumber(data.degrees)
+                entropySource = data.source
+                print("^2[DEBUG] Server: Success! Degree: " .. randomDegree .. "^7")
+            else
+                randomDegree = math.random(0, 359)
+                print("^1[DEBUG] Server: Backend Logic Error. Using Fallback.^7")
+            end
+        else
+            randomDegree = math.random(0, 359)
+            print("^1[DEBUG] Server: Connection Failed. Error: " .. tostring(err) .. "^7")
+        end
 
-    // Because pointer is at Top (0deg is usually right in CSS logic),
-    // and we rotated clockwise, we check which segment is now at the "Top" position.
-    // Simple approach: 360 - actualDeg gives us the segment from the start point.
-    let winningAngle = (360 - actualDeg + 90) % 360;
+        -- Calculate Winner
+        local segmentIndex = (8 - math.ceil(randomDegree / 45)) % 8
+        local winningIndex = segmentIndex + 1
+        local wonPrize = Segments[winningIndex]
 
-    // Determine index (each segment is 45deg)
-    let index = Math.floor(actualDeg / 45);
+        -- Give Reward
+        if wonPrize.value ~= "none" then
+            if wonPrize.value:find("money") then
+                local amount = tonumber(wonPrize.value:match("money_(%d+)"))
+                Player.Functions.AddMoney('bank', amount, "wheel-prize")
+            else
+                local item = wonPrize.value:gsub("item_", "")
+                Player.Functions.AddItem(item, 1)
+                TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items[item], "add")
+            end
+            TriggerClientEvent('QBCore:Notify', src, "Pyth Verified: Won " .. wonPrize.label, "success")
+        else
+            TriggerClientEvent('QBCore:Notify', src, "Pyth Verified: No Luck", "error")
+        end
 
-    // NOTE: Depending on your gradient alignment, you might need to flip this logic.
-    // Since we defined gradient 0-45, 45-90 etc.
-    // If we rotate 45 degrees, the 0-45 segment moves clockwise.
-    // We take the inverse for calculation logic or just simplistic array index:
-    // Let's fix the index to match the array defined above visually.
-    // Actually, the easiest way is: 8 - index (because we rotate clockwise)
-    let prizeIndex = (8 - Math.ceil(actualDeg / 45)) % 8;
+        TriggerClientEvent('qb-phone:client:ReceiveSpinResult', src, randomDegree, wonPrize.label)
 
-    let wonPrize = prizes[prizeIndex];
-
-    $("#spin-result-text").text("You won: " + wonPrize.label + "!");
-
-    // Send result to Server (Lua)
-    $.post('https://qb-phone/SpinWheelReward', JSON.stringify({
-        reward: wonPrize.value,
-        label: wonPrize.label
-    }));
-}
+    end, 'GET', "", { ["Content-Type"] = "application/json" })
+end)

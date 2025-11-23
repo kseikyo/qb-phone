@@ -1,53 +1,47 @@
 let currentRotation = 0;
 let isSpinning = false;
 
-// Define prizes
-const prizes = [
-    { label: "$100", value: "money_100" },
-    { label: "Sandwich", value: "item_sandwich" },
-    { label: "$1000", value: "money_1000" },
-    { label: "Nothing", value: "none" },
-    { label: "$500", value: "money_500" },
-    { label: "Water", value: "item_water" },
-    { label: "$5000", value: "money_5000" },
-    { label: "Phone", value: "item_phone" },
-];
-
-// Run when JS loads
-console.log("QB-Phone: spinwheel.js has loaded successfully.");
+console.log("QB-Phone: spinthewheel.js (Server Auth Mode) loaded.");
 
 $(document).ready(function () {
-    console.log("QB-Phone: spinwheel.js document is ready.");
-
-    // Attach click listener
+    // 1. Listen for the Spin Button Click
     $(document).on('click', '#spin-btn', function (e) {
-        console.log("QB-Phone: Spin Button Clicked!");
         e.preventDefault();
-
-        if (isSpinning) {
-            console.log("QB-Phone: Wheel is already spinning, ignoring click.");
-            return;
+        if (!isSpinning) {
+            requestServerSpin();
         }
+    });
 
-        startSpin();
+    // 2. Listen for the Server's Reply
+    window.addEventListener('message', function (event) {
+        var item = event.data;
+
+        // This event comes from client/main.lua
+        if (item.action === "spin_wheel_execute") {
+            console.log("QB-Phone: Server sent result:", item.targetDegree);
+            executeSpinAnimation(item.targetDegree, item.finalLabel);
+        }
     });
 });
 
-function startSpin() {
-    console.log("QB-Phone: Starting Spin...");
+function requestServerSpin() {
+    console.log("QB-Phone: Requesting Random Number from Node.js Backend...");
     isSpinning = true;
     $("#spin-btn").prop("disabled", true);
-    $("#spin-btn").text("Spinning..."); // Visual feedback on button text
-    $("#spin-result-text").text("Spinning...");
+    $("#spin-btn").text("Contacting Pyth Oracle..."); // UI Feedback
+    $("#spin-result-text").text("Waiting for blockchain...");
 
-    // Calculate random angle
-    const randomDeg = Math.floor(Math.random() * 360);
-    const totalSpins = 360 * 8;
-    const newRotation = currentRotation + totalSpins + randomDeg;
+    // TRIGGER LUA (Client) -> which triggers SERVER -> which triggers NODE
+    $.post('https://qb-phone/RequestSpin', JSON.stringify({}));
+}
 
-    console.log("QB-Phone: Rotating to " + newRotation + " degrees");
+function executeSpinAnimation(targetDegree, finalLabel) {
+    // Physics Calculation
+    // We add 1800 degrees (5 full spins) + the target degree from the server
+    const totalSpins = 360 * 5;
+    const newRotation = currentRotation + totalSpins + targetDegree;
 
-    // Apply CSS transform
+    // Animate CSS
     $("#wheel").css({
         "transform": "rotate(" + newRotation + "deg)",
         "transition": "transform 5s cubic-bezier(0.2, 0.8, 0.3, 1)"
@@ -55,34 +49,15 @@ function startSpin() {
 
     currentRotation = newRotation;
 
+    // Wait 5 seconds for animation to finish
     setTimeout(() => {
-        finishSpin(newRotation);
+        finishSpin(finalLabel);
     }, 5000);
 }
 
-function finishSpin(finalRotation) {
-    console.log("QB-Phone: Spin Finished.");
+function finishSpin(label) {
     isSpinning = false;
     $("#spin-btn").prop("disabled", false);
-    $("#spin-btn").text("SPIN ($0)");
-
-    let actualDeg = finalRotation % 360;
-
-    // Calculate winning index (8 segments, clockwise rotation)
-    // Logic: (8 - (segment index)) % 8
-    let prizeIndex = (8 - Math.ceil(actualDeg / 45)) % 8;
-
-    // Safety check for index
-    if (prizeIndex < 0) prizeIndex = 0;
-
-    let wonPrize = prizes[prizeIndex];
-    console.log("QB-Phone: Won Prize Index: " + prizeIndex + " (" + wonPrize.label + ")");
-
-    $("#spin-result-text").text("You won: " + wonPrize.label + "!");
-
-    // Send to Lua
-    $.post('https://qb-phone/SpinWheelReward', JSON.stringify({
-        reward: wonPrize.value,
-        label: wonPrize.label
-    }));
+    $("#spin-btn").text("SPIN AGAIN");
+    $("#spin-result-text").text("Oracle Verified: " + label);
 }
