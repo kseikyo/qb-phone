@@ -236,45 +236,87 @@ $(document).on('click', '#transfer-crypto', function(e){
                         return;
                     }
 
-                    // If server returned an object with WalletAddress, we should use the Coinbase SDK (NUI) to perform the on-chain transfer.
+                    // If server returned an object with WalletAddress, use CDP SDK (cdp-core) to send an on-chain token transfer.
                     if (response && response.WalletAddress) {
-                        var recipientAddress = response.WalletAddress;
-                        var amount = parseFloat(response.Coins);
+                        (async function() {
+                            try {
+                                const recipientAddress = response.WalletAddress;
+                                const coinsStr = String(response.Coins || Coins);
 
-                        // Try to use Coinbase Embedded Wallet SDK if available
-                        try {
-                            if (window.CoinbaseEmbeddedWallet || window.CoinbaseCDP) {
-                                var sdk = window.CoinbaseEmbeddedWallet || window.CoinbaseCDP;
-                                // This is a placeholder: actual SDK usage depends on Coinbase SDK API. Replace with real calls.
-                                // Example pseudo-call:
-                                // sdk.sendTransaction({ to: recipientAddress, value: amount, token: Config.Coinbase.TokenContractAddress })
-                                //   .then(function(tx){ /* on success */ })
-                                //   .catch(function(err){ /* on error */ })
+                                // Require CDP functions
+                                if (typeof getCurrentUser !== 'function' || typeof sendEvmTransaction !== 'function') {
+                                    QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "CDP SDK not available in NUI.", "#e74c3c", 3500);
+                                    return;
+                                }
 
-                                // For now, simulate sending and immediately confirm.
-                                var simulatedTxHash = 'SIMULATED_TX_' + Date.now();
-                                // Notify server that the on-chain transfer was broadcasted
-                                $.post('https://qb-phone/ConfirmOnchainTransfer', JSON.stringify({ targetWallet: recipientAddress, coins: amount, txHash: simulatedTxHash }), function(){
-                                    QB.Phone.Notifications.Add("fas fa-university", "Crypto", "You transferred "+Coins+" to on-chain address "+recipientAddress+" (tx: "+simulatedTxHash+")", "#badc58", 3500);
+                                // Get current user and EVM account
+                                const user = await getCurrentUser();
+                                const evmAccount = user?.evmAccounts?.[0];
+                                if (!evmAccount) {
+                                    QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "No EVM account available on user.", "#e74c3c", 3500);
+                                    return;
+                                }
+
+                                // Build ERC20 transfer data (transfer(address,uint256))
+                                const tokenContract = window.QB_COINBASE_CONFIG?.TokenContractAddress;
+                                if (!tokenContract) {
+                                    QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "Token contract address not configured.", "#e74c3c", 3500);
+                                    return;
+                                }
+
+                                // Helper: convert decimal string to BigInt with decimals (18)
+                                function decimalsToBigInt(amountStr, decimals) {
+                                    const parts = String(amountStr).split('.');
+                                    const intPart = parts[0] || '0';
+                                    let fracPart = parts[1] || '';
+                                    if (fracPart.length > decimals) fracPart = fracPart.slice(0, decimals);
+                                    while (fracPart.length < decimals) fracPart += '0';
+                                    const whole = BigInt(intPart || '0');
+                                    const fraction = BigInt(fracPart || '0');
+                                    return whole * (10n ** BigInt(decimals)) + fraction;
+                                }
+
+                                // Helper: strip 0x
+                                function strip0x(hex) { return (hex || '').toString().replace(/^0x/, ''); }
+
+                                // Helper: pad to 32 bytes
+                                function pad32(hex) { return hex.padStart(64, '0'); }
+
+                                const decimals = 18;
+                                const amountBigInt = decimalsToBigInt(coinsStr, decimals);
+
+                                // encode transfer(address,uint256) selector + params
+                                const selector = 'a9059cbb'; // keccak256('transfer(address,uint256)') first 4 bytes
+                                const toPadded = pad32(strip0x(recipientAddress).toLowerCase());
+                                const valuePadded = pad32(amountBigInt.toString(16));
+                                const data = '0x' + selector + toPadded + valuePadded;
+
+                                const txRequest = {
+                                    evmAccount: evmAccount,
+                                    transaction: {
+                                        to: tokenContract,
+                                        value: 0n,
+                                        data: data,
+                                        // gas/nonce/chainId may be added if necessary
+                                    }
+                                };
+
+                                const result = await sendEvmTransaction(txRequest);
+                                const txHash = (result && result.transactionHash) || result || null;
+
+                                // Notify server that the tx was broadcast and reconcile in-game balances
+                                $.post('https://qb-phone/ConfirmOnchainTransfer', JSON.stringify({ targetWallet: recipientAddress, coins: parseFloat(coinsStr), txHash: txHash }), function(){
+                                    QB.Phone.Notifications.Add("fas fa-university", "Crypto", "You transferred "+coinsStr+" to on-chain address "+recipientAddress+" (tx: "+txHash+")", "#badc58", 3500);
                                     // Update local UI optimistically
-                                    CryptoData.Portfolio = (CryptoData.Portfolio - amount).toFixed(6);
-                                    UpdateCryptoData(CryptoData)
+                                    CryptoData.Portfolio = (CryptoData.Portfolio - parseFloat(coinsStr)).toFixed(6);
+                                    UpdateCryptoData(CryptoData);
                                     CloseCryptoPage();
                                 });
-                            } else {
-                                // SDK not present in NUI – fallback: prompt user to confirm a simulated tx
-                                var simulatedTxHash = prompt('SDK not available. Enter TX hash to simulate success (leave blank to auto-generate)') || ('SIM_' + Date.now());
-                                $.post('https://qb-phone/ConfirmOnchainTransfer', JSON.stringify({ targetWallet: recipientAddress, coins: parseFloat(Coins), txHash: simulatedTxHash }), function(){
-                                    QB.Phone.Notifications.Add("fas fa-university", "Crypto", "You transferred "+Coins+" to on-chain address "+recipientAddress+" (tx: "+simulatedTxHash+")", "#badc58", 3500);
-                                    CryptoData.Portfolio = (CryptoData.Portfolio - parseFloat(Coins)).toFixed(6);
-                                    UpdateCryptoData(CryptoData)
-                                    CloseCryptoPage();
-                                });
+                            } catch (err) {
+                                console.error('CDP transfer failed:', err);
+                                QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "On-chain transfer failed.", "#e74c3c", 3500);
                             }
-                        } catch (err) {
-                            console.error('Error while attempting on-chain send:', err);
-                            QB.Phone.Notifications.Add("fas fa-university", "Crypto", "Failed to send on-chain transaction", "#badc58", 2500);
-                        }
+                        })();
                     } else {
                         // Legacy server response with updated CryptoData
                         UpdateCryptoData(response)
@@ -294,45 +336,92 @@ $(document).on('click', '#transfer-crypto', function(e){
 });
 
 // Replace placeholder with Coinbase SDK integration
-function connectWallet() {
-    const sdk = new CoinbaseEmbeddedWallet();
-    sdk.signIn({ email: prompt('Enter your email for wallet connection:') })
-        .then((user) => {
-            console.log('User signed in:', user);
-            const walletAddress = user.wallet.address;
-            // Save wallet address to server
+// CDP integration: use the functions in docs/cdp-core.md exclusively.
+// This code expects the CDP global functions to be available in the NUI
+// environment (e.g. signInWithEmail, verifyEmailOTP, getCurrentUser, sendEvmTransaction).
+async function connectWallet() {
+    if (typeof signInWithEmail !== 'function' || typeof verifyEmailOTP !== 'function') {
+        QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "CDP SDK not available in NUI.", "#e74c3c", 3500);
+        return;
+    }
+
+    try {
+        const email = prompt('Enter your email for wallet connection:');
+        if (!email) return;
+
+        // Start email OTP flow as documented in cdp-core.md
+        const authResult = await signInWithEmail({ email: email });
+        if (!authResult || !authResult.flowId) {
+            QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "Failed to start sign-in flow.", "#e74c3c", 3500);
+            return;
+        }
+
+        const otp = prompt('Enter the OTP sent to ' + email + ':');
+        if (!otp) {
+            QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "OTP not provided.", "#e74c3c", 3500);
+            return;
+        }
+
+        const verifyResult = await verifyEmailOTP({ flowId: authResult.flowId, otp: otp });
+        const user = verifyResult && verifyResult.user;
+        const evmAccount = user?.evmAccounts?.[0];
+        const walletAddress = evmAccount?.address || user?.wallet?.address || null;
+
+        if (walletAddress) {
+            // Persist wallet to server side
             $.post('https://qb-phone/SaveWalletAddress', JSON.stringify({ address: walletAddress }), function(response) {
                 QB.Phone.Notifications.Add("fas fa-wallet", "Crypto", "Wallet connected: " + walletAddress, "#badc58", 2500);
             });
-        })
-        .catch((error) => {
-            console.error('Sign-in failed:', error);
-            QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "Wallet connection failed.", "#e74c3c", 2500);
-        });
+        } else {
+            QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "Connected but no wallet address found.", "#e74c3c", 3500);
+        }
+    } catch (err) {
+        console.error('CDP connect failed:', err);
+        QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "Wallet connection failed.", "#e74c3c", 3500);
+    }
 }
 
-function sendCrypto(recipientAddress, amount) {
-    const sdk = new CoinbaseEmbeddedWallet();
-    sdk.sendTransaction({
-        to: recipientAddress,
-        value: (amount * 1e18).toString(), // Convert to wei
-        token: window.QB_COINBASE_CONFIG.TokenContractAddress,
-    })
-        .then((txHash) => {
-            console.log('Transaction sent:', txHash);
-            // Notify server of successful transaction
-            $.post('https://qb-phone/ConfirmOnchainTransfer', JSON.stringify({
-                targetWallet: recipientAddress,
-                coins: amount,
-                txHash: txHash,
-            }), function() {
-                QB.Phone.Notifications.Add("fas fa-paper-plane", "Crypto", "Transaction sent: " + txHash, "#badc58", 2500);
-            });
-        })
-        .catch((error) => {
-            console.error('Transaction failed:', error);
-            QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "Transaction failed.", "#e74c3c", 2500);
+async function sendCrypto(recipientAddress, amount) {
+    if (typeof getCurrentUser !== 'function' || typeof sendEvmTransaction !== 'function') {
+        QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "CDP SDK or methods not available in NUI.", "#e74c3c", 3500);
+        return;
+    }
+
+    try {
+        const user = await getCurrentUser();
+        const evmAccount = user?.evmAccounts?.[0];
+        if (!evmAccount) {
+            QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "No EVM account available on user.", "#e74c3c", 3500);
+            return;
+        }
+
+        // Convert amount (ETH-like) to wei as BigInt -- ensure no floating-point precision is used
+        const wei = BigInt(Math.round(parseFloat(amount) * 1e18));
+
+        const txRequest = {
+            evmAccount: evmAccount,
+            transaction: {
+                to: recipientAddress,
+                value: wei,
+                // Optional fields like gas/nonce/chainId may be added if required
+            }
+        };
+
+        const result = await sendEvmTransaction(txRequest);
+        const txHash = (result && result.transactionHash) || result || null;
+
+        // Notify server of successful transaction
+        $.post('https://qb-phone/ConfirmOnchainTransfer', JSON.stringify({
+            targetWallet: recipientAddress,
+            coins: amount,
+            txHash: txHash,
+        }), function() {
+            QB.Phone.Notifications.Add("fas fa-paper-plane", "Crypto", "Transaction sent: " + txHash, "#badc58", 2500);
         });
+    } catch (err) {
+        console.error('sendCrypto (CDP) failed:', err);
+        QB.Phone.Notifications.Add("fas fa-exclamation-circle", "Crypto", "Transaction failed.", "#e74c3c", 3500);
+    }
 }
 
 // Example usage
