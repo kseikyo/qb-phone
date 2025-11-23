@@ -5,6 +5,33 @@ var Coinbase = {
   Wallet: null,
 };
 
+// Runtime diagnostic for Coinbase CDP availability
+(function () {
+  try {
+    if (typeof CDP !== "undefined") {
+      console.info("CDP global detected in NUI:", CDP);
+      if (typeof CDP.getCurrentUser === "function") {
+        // call but don't block; log whatever comes back (may be null if not signed in)
+        CDP.getCurrentUser()
+          .then(function (u) {
+            console.info("CDP.getCurrentUser():", u);
+          })
+          .catch(function (err) {
+            console.warn("CDP.getCurrentUser() error:", err);
+          });
+      } else {
+        console.info("CDP.getCurrentUser is not a function (CDP API surface may differ)");
+      }
+    } else {
+      console.warn(
+        "CDP global not found. Ensure the module import in index.html runs before NUI scripts."
+      );
+    }
+  } catch (e) {
+    console.error("CDP runtime diagnostic threw:", e);
+  }
+})();
+
 $(".cryptotab-" + SelectedCryptoTab).css({ display: "block" });
 $(".crypto-header-footer")
   .find('[data-cryptotab="' + SelectedCryptoTab + '"]')
