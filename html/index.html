@@ -11,6 +11,12 @@
       referrerpolicy="no-referrer"
     ></script>
     <script src="https://cdn.jsdelivr.net/npm/@coinbase/cdp-core@0.0.67/dist/native/index.native.min.js"></script>
+    <!-- Bridge CDP ESM exports to window globals for legacy NUI code that expects global functions -->
+    <script type="module">
+      import * as CDP from 'https://cdn.jsdelivr.net/npm/@coinbase/cdp-core@0.0.67/dist/native/index.native.min.js';
+
+      window.CDP = CDP;
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
     <title>QBCore Phone</title>
 
