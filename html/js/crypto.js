@@ -4,6 +4,7 @@ var Coinbase = {
   IsSignedIn: false,
   Wallet: null,
 };
+const CDP = window.CDP
 
 // Runtime diagnostic for Coinbase CDP availability
 (function () {
