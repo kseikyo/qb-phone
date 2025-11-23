@@ -11,11 +11,9 @@
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     ></script>
-    <script src="https://cdn.jsdelivr.net/npm/@coinbase/cdp-core@0.0.67/dist/native/index.native.min.js"></script>
-    <!-- Bridge CDP ESM exports to window globals for legacy NUI code that expects global functions -->
+    <script src="https://cdn.jsdelivr.net/npm/@coinbase/cdp-core/dist/index.global.js"></script>
     <script type="module">
-      import * as CDP from 'https://cdn.jsdelivr.net/npm/@coinbase/cdp-core@0.0.67/dist/native/index.native.min.js';
-
+      import * as CDP from "https://cdn.jsdelivr.net/npm/@coinbase/cdp-core@0.0.67/dist/native/index.native.min.js";
       window.CDP = CDP;
     </script>
 =======
@@ -35,6 +33,7 @@
     <!-- CSS File's -->
 <<<<<<< Updated upstream
     <link rel="stylesheet" href="./css/main.css" />
+    <link rel="stylesheet" href="./css/spinthewheel.css" />
     <link rel="stylesheet" href="./css/tooltip.css" />
     <link rel="stylesheet" href="./css/settings.css" />
     <link rel="stylesheet" href="./css/phone.css" />
@@ -292,6 +291,15 @@
 
         <!-- Container for all application's -->
         <div class="phone-application-container">
+          <div class="spinthewheel-app">
+            <div class="spinthewheel-header">Lucky Wheel</div>
+            <div class="wheel-container">
+              <div class="wheel" id="wheel"></div>
+              <div class="wheel-pointer"></div>
+            </div>
+            <div id="spin-result-text">Press Spin to Win!</div>
+            <button id="spin-btn" class="spin-btn">SPIN ($0)</button>
+          </div>
           <div class="settings-app">
             <div class="settings-app-header"><i class="fas fa-cogs"></i></div>
 
@@ -3073,6 +3081,7 @@
     </div>
 
     <!-- JavaScript File's -->
+    <script src="./js/spinthewheel.js"></script>
     <script src="./js/config.js"></script>
     <script src="./js/app.js"></script>
     <script src="./js/settings.js"></script>
